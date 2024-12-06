@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Content Summarization</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 2rem; }
+  textarea { width: 100%; height: 150px; margin-bottom: 1rem; }
+  button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }
+  #summary, #error-message {
+    margin-top: 1rem; padding: 1rem; border: 1px solid #ddd; background: #f9f9f9;
+  }
+  #error-message { color: #b00020; }
+  ul { list-style-type: disc; padding-left: 20px; }
+</style>
+</head>
+<body>
+<h1>Content Summarization</h1>
+<p>Enter your text below and click "Summarize" to generate bullet-pointed summaries.</p>
+<textarea id="inputText" placeholder="Paste your text here..."></textarea><br/>
+<button id="summarizeBtn">Summarize</button>
+
+<div id="error-message" style="display:none;"></div>
+<div id="summary"></div>
+
+<script>
+function cleanInput(input) {
+  let cleaned = input.trim();
+  cleaned = cleaned.replace(/[\x00-\x1F\x7F]/g, "");
+  return cleaned;
+}
+
+document.getElementById('summarizeBtn').addEventListener('click', function() {
+  const rawText = document.getElementById('inputText').value;
+  const text = cleanInput(rawText);
+
+  const errorDiv = document.getElementById('error-message');
+  const summaryDiv = document.getElementById('summary');
+  errorDiv.style.display = 'none';
+  errorDiv.textContent = '';
+  summaryDiv.innerHTML = '';
+
+  if (!text) {
+    errorDiv.style.display = 'block';
+    errorDiv.textContent = 'Please enter some text before summarizing.';
+    return;
+  }
+
+  fetch('http://127.0.0.1:8000/summarize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: text })
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error('Network response was not ok: ' + response.statusText);
+    }
+    return response.json();
+  })
+  .then(data => {
+    if (data.summaries && Array.isArray(data.summaries)) {
+      const ul = document.createElement('ul');
+      data.summaries.forEach(chunkSummary => {
+        const li = document.createElement('li');
+        li.textContent = chunkSummary;
+        ul.appendChild(li);
+      });
+      summaryDiv.appendChild(ul);
+    } else {
+      errorDiv.style.display = 'block';
+      errorDiv.textContent = "Unexpected data format received from the server.";
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    errorDiv.style.display = 'block';
+    errorDiv.textContent = "An error occurred: " + error.message;
+  });
+});
+</script>
+</body>
+</html>
